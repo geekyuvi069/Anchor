@@ -4,7 +4,7 @@ app = typer.Typer()
 
 @app.command()
 def main():
-    print("AI-Edit CLI Tool")
+    print("Anchor CLI Tool")
 
 if __name__ == "__main__":
     app()
