@@ -1,70 +1,76 @@
-# Anchor
+# Anchor ⚓
 
-**Anchor** is a local-first, safe, and controlled AI-assisted code editing tool for developers who care about security, context, and reliability.
+**Anchor** is a safe, local AI-assisted code editing tool. It brings the power of LLMs (like Code Llama) to your terminal without sending your code to the cloud.
+
+```text
+█████╗ ███╗   ██╗ ██████╗██╗  ██╗ ██████╗ ██████╗ 
+██╔══██╗████╗  ██║██╔════╝██║  ██║██╔═══██╗██╔══██╗
+███████║██╔██╗ ██║██║     ███████║██║   ██║██████╔╝
+██╔══██║██║╚██╗██║██║     ██╔══██║██║   ██║██╔══██╗
+██║  ██║██║ ╚████║╚██████╗██║  ██║╚██████╔╝██║  ██║
+╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝
+
+Safe, Local AI-Assisted Code Editing
+```
 
 ## 🚀 Vision
 
-AI-powered coding tools are powerful, but often unsafe or privacy-invasive. `Anchor` aims to solve this by being:
-- **Local**: Runs entirely offline using [Ollama](https://ollama.ai) and Code Llama. No API keys, no cloud data leaks.
-- **Safe**: Never modifies your code blindly. It uses a rigorous pipeline of **Diff -> Dry-run -> Validate -> Backup -> Apply**.
-- **Context-Aware**: Understands your project structure (repo maps) without hallucinating file paths.
-- **Controlled**: You always have an `undo` button.
+- **Local**: Runs entirely offline using [Ollama](https://ollama.ai). No data leaks.
+- **Safe**: Validates every diff. Never modifies code blindly.
+- **Controlled**: Instant `undo` if you don't like the change.
 
-## 🛠️ Features (v1)
+## 📦 Installation (Global)
 
-- **CLI-First**: Simple, efficient command-line interface.
-- **Unified Diffs**: The AI only suggests *changes*, it never rewrites entire files.
-- **Safety Pipeline**:
-    1. **Parse**: Validates the diff format.
-    2. **Dry-Run**: Simulates the patch in memory.
-    3. **Validate**: Checks syntax (e.g., `python -m py_compile`) before applying.
-    4. **Backup**: Saves a copy of the original file.
-- **Undo Support**: One-command rollback (`Anchor --undo`).
+To run `anchor` from any terminal window:
 
-## 📦 Installation
+### Option 1: Using Pipx (Recommended)
+```bash
+pipx install .
+```
 
-*(Instructions for v1 development setup)*
+### Option 2: Manual Setup (If pipx fails)
+If you are on a restricted system (like Debian/Ubuntu), create a wrapper script:
 
-1.  **Prerequisites**:
-    *   Python 3.10+
-    *   [Ollama](https://ollama.ai) installed and running.
-    *   Pull the model: `ollama pull codellama`
+```bash
+# 1. Create the executable script
+echo '#!/bin/bash' > ~/.local/bin/anchor
+echo 'PYTHONPATH=/home/geekyuvi/Anchor /home/geekyuvi/Anchor/venv/bin/python3 -m anchor.cli "$@"' >> ~/.local/bin/anchor
 
-2.  **Setup**:
-    ```bash
-    git clone https://github.com/yourusername/Anchor.git
-    cd Anchor
-    pip install -r requirements.txt
-    ```
+# 2. Make it executable
+chmod +x ~/.local/bin/anchor
+
+# 3. Verify it works
+anchor
+```
 
 ## 💻 Usage
 
-### Editing Code
-Ask `Anchor` to perform a task on a specific file:
+### 1. Welcome Screen
+Just type `anchor` to see the status and help.
 ```bash
-python main.py edit <filename> --task "Add a docstring to the apply_patch function"
+anchor
 ```
 
-### Undo Changes
-Made a mistake? Revert the last change instantly:
+### 2. Create or Edit Code
+Ask Anchor to build something new or refactor existing code:
 ```bash
-python main.py undo
+# Create a new game
+anchor edit snake.py "Create a snake game using pygame"
+
+# Edit an existing file
+anchor edit main.py "Refactor the login function to use JWT"
+```
+
+### 3. Undo
+Made a mistake? Revert instantly.
+```bash
+anchor undo
 ```
 
 ## 🏗️ Architecture
-
-- **LLM Engine**: Ollama (Code Llama)
-- **Context**: Python AST (Abstract Syntax Tree) for repo structure
-- **Patch Engine**: `patch-ng` / `whatthepatch`
-- **CLI Framework**: Typer
-
-## 🤝 Contributing
-
-We welcome contributions! This is a tool for developers, by developers.
-
-1.  Fork the repo.
-2.  Create a feature branch.
-3.  Submit a Pull Request.
+- **LLM**: Ollama (Code Llama / Qwen)
+- **Engine**: Python AST + Custom Fuzzy Patching
+- **UI**: Rich + Typer
 
 ---
-*Built with ❤️ for safe, local AI coding.*
+*Built for safe, local coding.*
