@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "anchor-cli"
+version = "0.1.0"
+description = "Local-first, safe AI-assisted code editing tool"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "requests",
+    "typer[all]",
+    "whatthepatch",
+    "patch-ng",
+    "rich",
+]
+
+[project.scripts]
+anchor = "anchor.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
