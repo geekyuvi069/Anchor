@@ -32,6 +32,9 @@ def edit(
     with console.status("[bold green]Generating context...[/bold green]"):
         repo_map = generate_repo_map(str(file_path.parent)) # Use file's directory as root for now, or git root
         content = file_path.read_text(encoding="utf-8")
+        
+        # Add line numbers to content for LLM
+        numbered_content = "\n".join([f"{i+1:4} | {line}" for i, line in enumerate(content.splitlines())])
     
     # 2. LLM Call
     system_prompt = (
@@ -42,9 +45,9 @@ def edit(
         "Here is the content of the file you need to edit:\n"
         f"File: {file}\n"
         "```python\n"
-        f"{content}\n"
+        f"{numbered_content}\n"
         "```\n"
-        "Output ONLY the unified diff."
+        "Output ONLY the unified diff. Ensure line numbers in the diff match the ORIGINAL file (ignore the line number prefix in the prompt context)."
     )
     
     client = LLMClient(model=model)
