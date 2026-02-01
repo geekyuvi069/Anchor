@@ -19,7 +19,7 @@ class LLMClient:
             "stream": False,
             "options": {
                 "temperature": 0.2, # Low temperature for more deterministic code
-                "num_predict": 1024
+                "num_predict": 4096 # Higher limit for full file generation
             }
         }
         
