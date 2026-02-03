@@ -58,4 +58,4 @@ def generate_repo_map(root_dir: str = ".") -> str:
                 for d in defs:
                     repo_map.append(f"  {d}")
                     
-    return "\n".join(repo_map)
+    return "\n".join(repo_map) 
