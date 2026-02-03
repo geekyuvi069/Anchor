@@ -1,3 +1,15 @@
+Metadata-Version: 2.4
+Name: anchor-cli
+Version: 0.1.0
+Summary: Local-first, safe AI-assisted code editing tool
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: requests
+Requires-Dist: typer[all]
+Requires-Dist: whatthepatch
+Requires-Dist: patch-ng
+Requires-Dist: rich
+
 # Anchor ⚓
 
 **Anchor** is a safe, local AI-assisted code editing tool. It brings the power of LLMs (like Code Llama) to your terminal without sending your code to the cloud.
@@ -28,35 +40,40 @@ To run `anchor` from any terminal window:
 pipx install .
 ```
 
-### Option 2: Editable Mode (For Developers)
-If you want to modify Anchor's code and see changes immediately:
+### Option 2: Manual Setup (If pipx fails)
+If you are on a restricted system (like Debian/Ubuntu), create a wrapper script:
+
 ```bash
-source venv/bin/activate
-pip install -e .
+# 1. Create the executable script
+echo '#!/bin/bash' > ~/.local/bin/anchor
+echo 'PYTHONPATH=/home/geekyuvi/Anchor /home/geekyuvi/Anchor/venv/bin/python3 -m anchor.cli "$@"' >> ~/.local/bin/anchor
+
+# 2. Make it executable
+chmod +x ~/.local/bin/anchor
+
+# 3. Verify it works
+anchor
 ```
 
 ## 💻 Usage
 
-### 1. General Chat
-Just want to talk or ask a coding question without making changes?
+### 1. Welcome Screen
+Just type `anchor` to see the status and help.
 ```bash
-anchor chat
+anchor
 ```
 
-### 2. Conversational Editing (Recommended)
-Discuss and plan a feature before applying any changes. Anchor will analyze your code and ask clarifying questions first.
+### 2. Create or Edit Code
+Ask Anchor to build something new or refactor existing code:
 ```bash
-anchor modify --feature "add a logout endpoint" --file "server.py"
-```
-*Flow: Discuss -> Plan -> Confirm -> Apply*
+# Create a new game
+anchor edit snake.py "Create a snake game using pygame"
 
-### 3. Direct Quick Edit
-For simple tasks where you want immediate code generation:
-```bash
-anchor edit snake.py "Create a simple snake game"
+# Edit an existing file
+anchor edit main.py "Refactor the login function to use JWT"
 ```
 
-### 4. Undo
+### 3. Undo
 Made a mistake? Revert instantly.
 ```bash
 anchor undo
@@ -64,9 +81,8 @@ anchor undo
 
 ## 🏗️ Architecture
 - **LLM**: Ollama (Code Llama / Qwen)
-- **Discussion Engine**: Multi-turn chat with persistent context
-- **Safety**: Unified Diffs + Path validation + Automated Backups
+- **Engine**: Python AST + Custom Fuzzy Patching
 - **UI**: Rich + Typer
 
 ---
-*Built for safe, local, and collaborative AI coding.*
+*Built for safe, local coding.*
