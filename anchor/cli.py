@@ -18,6 +18,7 @@ from anchor.conversation import (
     create_discussion_prompt,
     create_planning_prompt,
 )
+from anchor.streaming import LiveCodeWriter
 
 def process_and_apply_diff(
     content: str, 
@@ -100,6 +101,7 @@ def edit(
     file: str,
     task: str,
     model: str = typer.Option("codellama", help="Ollama model to use"),
+    show_tokens: bool = typer.Option(False, "--show-tokens", help="Show code as it is written in the terminal"),
 ):
     """
     Edit a file based on a task description using local AI.
@@ -179,8 +181,15 @@ def edit(
     backup_path = backup_mgr.create_backup(str(file_path))
     console.print(f"Backup saved to: {backup_path}")
 
-    file_path.write_text(new_content, encoding="utf-8")
-    console.print(f"[bold green]Success![/bold green] Edited {file}.")
+    if new_file_mode:
+        # Stream the new file content for the "LiveCode" experience
+        console.print(f"[bold blue]Streaming content to {file}...[/bold blue]")
+        writer = LiveCodeWriter(str(file_path), quiet=not show_tokens)
+        token_stream = client.stream_generate(system_prompt, task)
+        writer.write_stream(token_stream)
+    else:
+        file_path.write_text(new_content, encoding="utf-8")
+        console.print(f"[bold green]Success![/bold green] Edited {file}.")
 
 
 @app.command()
@@ -283,11 +292,56 @@ def modify(
                 # Backup & Apply
                 backup_mgr = BackupManager()
                 backup_path = backup_mgr.create_backup(str(file_path))
+                
+                # For consistency, just write. If we wanted streaming here,
+                # we'd have to stream the resulting content.
                 file_path.write_text(new_content, encoding="utf-8")
                 console.print(f"[bold green]Success![/bold green] Applied changes to {file}.")
                 console.print(f"Backup saved to: {backup_path}")
             else:
                 console.print("[yellow]No changes applied.[/yellow]")
+
+@app.command()
+def write(
+    file: str = typer.Argument(..., help="Target file to write code into"),
+    task: str = typer.Argument(..., help="Task description for the LLM"),
+    model: str = typer.Option("codellama", help="Ollama model to use"),
+    show_tokens: bool = typer.Option(False, "--show-tokens", help="Show code as it is written in the terminal"),
+):
+    """
+    Generate code and write it to a file token-by-token in real-time.
+    Exactly like human typing.
+    """
+    file_path = Path(file).resolve()
+    if file_path.exists():
+        if not Confirm.ask(f"[yellow]File {file} already exists. Overwrite?[/yellow]"):
+            raise typer.Exit()
+        backup_mgr = BackupManager()
+        backup_mgr.create_backup(str(file_path))
+
+    console.print(
+        Panel(
+            f"🚀 [bold]Anchor LiveWrite[/bold] is writing to: [bold]{file}[/bold]\nTask: {task}",
+            title="LiveCode Writer",
+            border_style="blue",
+        )
+    )
+
+    client = LLMClient(model=model)
+    writer = LiveCodeWriter(str(file_path), quiet=not show_tokens)
+
+    system_prompt = (
+        "You are an expert coding assistant.\n"
+        "Generate ONLY the raw code requested. Do NOT use markdown code blocks (no ```). No commentary.\n"
+        "The code must be complete and runnable."
+    )
+
+    try:
+        token_stream = client.stream_generate(system_prompt, task)
+        writer.write_stream(token_stream)
+    except Exception as e:
+        console.print(f"\n[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
 @app.command()
 def chat(
     model: str = typer.Option("codellama", help="Ollama model to use"),

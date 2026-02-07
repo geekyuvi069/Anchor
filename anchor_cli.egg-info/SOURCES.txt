@@ -7,6 +7,7 @@ anchor/context.py
 anchor/conversation.py
 anchor/llm.py
 anchor/patch.py
+anchor/streaming.py
 anchor/ui.py
 anchor/validator.py
 anchor_cli.egg-info/PKG-INFO

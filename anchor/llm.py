@@ -10,6 +10,36 @@ class LLMClient:
         self.api_url = f"{OLLAMA_HOST}/api/generate"
         self.chat_url = f"{OLLAMA_HOST}/api/chat"
 
+    def stream_generate(self, system_prompt: str, user_prompt: str):
+        """
+        Generates a streaming response from the local Ollama instance.
+        Yields tokens as they arrive.
+        """
+        payload = {
+            "model": self.model,
+            "prompt": f"{system_prompt}\n\nUser Task: {user_prompt}",
+            "stream": True,
+            "options": {
+                "temperature": 0.2,
+                "num_predict": 4096
+            }
+        }
+
+        try:
+            response = requests.post(self.api_url, json=payload, stream=True)
+            if response.status_code != 200:
+                raise RuntimeError(f"Ollama Error: {response.text}")
+
+            for line in response.iter_lines():
+                if line:
+                    chunk = json.loads(line)
+                    if "response" in chunk:
+                        yield chunk["response"]
+                    if chunk.get("done"):
+                        break
+        except requests.exceptions.RequestException as e:
+            raise RuntimeError(f"Failed to connect to Ollama at {OLLAMA_HOST}. Is it running?") from e
+
     def generate(self, system_prompt: str, user_prompt: str) -> str:
         """
         Generates a response from the local Ollama instance (legacy generate endpoint).

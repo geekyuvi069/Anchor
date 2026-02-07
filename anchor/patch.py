@@ -8,104 +8,101 @@ class PatchError(Exception):
 def apply_patch_dry_run(original_content: str, diff_text: str) -> str:
     """
     Applies a unified diff to a string in memory.
-    Returns the modified content or raises PatchError.
+    Prioritizes robust parsing to handle AI-generated diffs with incorrect headers.
     """
-    # Parse the diff
-    try:
-        diffs = list(whatthepatch.parse_patch(diff_text))
-    except Exception as e:
-        raise PatchError(f"Failed to parse diff: {e}")
-
-    if not diffs:
-        raise PatchError("No valid diff found in response.")
-
-    # We expect the diff to target the file we are editing.
-    # Since we are feeding context for ONE file, we assume the first diff is relevant.
-    diff = diffs[0]
+    lines = original_content.splitlines()
     
-    if diff.header is None and diff.changes is None:
-         raise PatchError("Diff is empty or invalid.")
-
-    # Apply using patch_ng logic (which emulates GNU patch)
-    # Since patch_ng applies to files, we use its internal logic or a wrapper if available.
-    # Actually, patch_ng is a wrapper around the patch command or python implementation.
-    # 'whatthepatch' can apply patches to text. Let's use whatthepatch for application if possible,
-    # or implement a simple line-based patcher.
+    # 1. Manually parse the hunk to include ALL lines even if headers are wrong.
+    hunk_lines = []
+    in_hunk = False
+    for line in diff_text.splitlines():
+        if line.startswith("@@"):
+            in_hunk = True
+            continue
+        if in_hunk:
+            if line.startswith((" ", "+", "-")):
+                hunk_lines.append(line)
+            elif not line.strip():
+                 hunk_lines.append(" ") # Handle empty context lines
+            else:
+                if line.startswith("---") or line.startswith("+++"):
+                    continue
+                if line.strip() == "```":
+                    break
     
-    # whatthepatch.apply_diff is available!
-    try:
-        # Before applying, ensure THERE ARE changes.
-        # Identity diffs (where nothing changes) should be treated as no-ops or errors if we expected changes.
-        has_changes = False
-        for change in diff.changes:
-            if change.old is None or change.new is None:
-                has_changes = True
-                break
-        
-        if not has_changes:
-            raise PatchError("Diff contains no additions or deletions.")
+    if not hunk_lines:
+        # Try whatthepatch as a last resort
+        try:
+            diffs = list(whatthepatch.parse_patch(diff_text))
+            if diffs and diffs[0].changes:
+                new_lines = whatthepatch.apply_diff(diffs[0], lines)
+                if new_lines:
+                    return "\n".join(new_lines)
+        except Exception:
+            pass
+        raise PatchError("Could not find any changes in the diff.")
 
-        new_lines = whatthepatch.apply_diff(diff, original_content.splitlines())
-        if new_lines is None:
-             raise PatchError("Failed to apply patch (whatthepatch returned None).")
-        return "\n".join(new_lines)
-    except PatchError:
-        raise
-    except Exception as e:
-        # Fallback to Fuzzy Patching
-        lines = original_content.splitlines()
+    # Build old (search) and new (replacement) blocks
+    search_block = []
+    replace_block = []
+    has_actual_changes = False
+    for line in hunk_lines:
+        prefix = line[0] if line else " "
+        content = line[1:] if line else ""
         
-        # Build changes
-        old_block = [] # Content of removed/context lines
-        new_block = [] # Content of added/context lines
-        
-        for change in diff.changes:
-            # Handle whatthepatch 0.x and 1.x differences if any, 
-            # assume object access based on tests
-            # change is object with 'old', 'new', 'line'
-            old_ix = change.old
-            new_ix = change.new
-            line = change.line
+        if prefix == " ":
+            search_block.append(content)
+            replace_block.append(content)
+        elif prefix == "-":
+            search_block.append(content)
+            has_actual_changes = True
+        elif prefix == "+":
+            replace_block.append(content)
+            has_actual_changes = True
+
+    if not has_actual_changes:
+        raise PatchError("Diff contains no additions or deletions.")
+
+    # Search for the block in the original content
+    orig_lines_clean = [l.strip() for l in lines]
+    search_clean = [l.strip() for l in search_block if l.strip()]
+    
+    if not search_clean:
+         # Pure addition (no context). Append to end.
+         return original_content.rstrip() + "\n" + "\n".join(replace_block)
+
+    # Fuzzy Search: match the context lines
+    n = len(search_clean)
+    match_index = -1
+    for i in range(len(orig_lines_clean) - n + 1):
+        if orig_lines_clean[i : i + n] == search_clean:
+            match_index = i
+            break
             
-            if old_ix is not None and new_ix is not None:
-                old_block.append(line)
-                new_block.append(line)
-            elif old_ix is not None:
-                old_block.append(line)
-            elif new_ix is not None:
-                new_block.append(line)
+    if match_index != -1:
+        # Map cleaned lines back to original indices
+        orig_indices = []
+        for idx, l in enumerate(lines):
+            if l.strip():
+                orig_indices.append(idx)
         
-        # Normalize: remove empty lines for matching
-        old_norm = [l.strip() for l in old_block if l.strip()]
-        if not old_norm:
-             raise PatchError(f"Strict patch failed and fuzzy patch cannot match empty context: {e}")
+        if len(orig_indices) < match_index + n:
+             # Fallback if indexing is weird
+             return original_content.replace("\n".join(search_block), "\n".join(replace_block))
              
-        # Map original non-empty lines
-        orig_map = [] # (content, original_index)
-        for idx, line in enumerate(lines):
-            s = line.strip()
-            if s:
-                orig_map.append((s, idx))
-                
-        # Search
-        orig_contents = [x[0] for x in orig_map]
-        n = len(old_norm)
-        match_start_index = -1
+        start_idx = orig_indices[match_index]
+        end_idx = orig_indices[match_index + n - 1]
         
-        for i in range(len(orig_contents) - n + 1):
-            if orig_contents[i : i+n] == old_norm:
-                match_start_index = i
-                break
-        
-        if match_start_index != -1:
-             start_line_idx = orig_map[match_start_index][1]
-             end_line_idx = orig_map[match_start_index + n - 1][1]
-             
-             pre = lines[:start_line_idx]
-             post = lines[end_line_idx + 1:]
-             return "\n".join(pre + new_block + post)
-             
-        raise PatchError(f"Strict patch failed and fuzzy patch could not find context: {e}")
+        pre = lines[:start_idx]
+        post = lines[end_idx + 1:]
+        return "\n".join(pre + replace_block + post)
+
+    # Final fallback: simple string replacement if fuzzy match failed
+    search_str = "\n".join(search_block)
+    if search_str and search_str in original_content:
+        return original_content.replace(search_str, "\n".join(replace_block))
+
+    raise PatchError("Could not find matching context in the file for the suggested changes.")
 
 def validate_syntax(content: str, filename: str) -> bool:
     """
