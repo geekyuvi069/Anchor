@@ -85,16 +85,16 @@ def create_analysis_prompt(feature: str, repo_context: str) -> str:
     """
     Create the initial prompt for analyzing a feature request.
     """
-    return f"""Analyze this request concisely:
+    return f"""Analyze this request EXTREMELY concisely (max 50 words):
 Feature Request: {feature}
 
 Context:
 {repo_context}
 
-Provide:
-1. A 1-sentence summary of what's needed.
-2. Direct clarifying questions if needed.
-Keep it brief and avoid suggesting new files unless necessary."""
+Respond ONLY with:
+1. One-sentence summary.
+2. 2-3 essential questions MAX.
+Do not suggest new files."""
 
 
 def create_discussion_prompt(
@@ -108,7 +108,7 @@ History:
 {discussion_history}
 User said: {user_response}
 
-Respond briefly. If you have enough info, say "I have enough information to create a plan."."""
+Respond in max 30 words. If you have enough info, say exactly "I have enough information to create a plan."."""
 
 
 def create_planning_prompt(
@@ -117,14 +117,14 @@ def create_planning_prompt(
     """
     Create a prompt for generating the plan.
     """
-    return f"""Create a MINIMAL implementation plan.
-
+    return f"""Create a TINY implementation plan (max 100 tokens).
+ 
 Task: {feature}
 Discussion: {full_conversation}
 Context: {repo_context}
-
+ 
 Rules:
-1. Only modify files that are absolutely necessary.
-2. No new modules/files unless requested.
-3. Steps should be a simple bulleted list.
-4. Keep the summary under 3 lines."""
+1. List ONLY changed lines/functions.
+2. No new modules/files.
+3. Steps should be a short bulleted list.
+4. Keep the summary under 1 line."""

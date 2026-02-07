@@ -26,6 +26,18 @@ class LLMClient:
         
         try:
             response = requests.post(self.api_url, json=payload)
+            if response.status_code != 200:
+                try:
+                    error_msg = response.json().get("error", "Unknown error")
+                except Exception:
+                    error_msg = response.text
+                
+                hint = ""
+                if "memory" in error_msg.lower():
+                    hint = "\nHint: Your system may not have enough RAM for this model. Try a smaller model like 'deepseek-coder:1.3b'."
+                
+                raise RuntimeError(f"Ollama Error: {error_msg}{hint}")
+
             response.raise_for_status()
             return response.json().get("response", "")
         except requests.exceptions.RequestException as e:
@@ -48,6 +60,18 @@ class LLMClient:
 
         try:
             response = requests.post(self.chat_url, json=payload)
+            if response.status_code != 200:
+                try:
+                    error_msg = response.json().get("error", "Unknown error")
+                except Exception:
+                    error_msg = response.text
+                
+                hint = ""
+                if "memory" in error_msg.lower():
+                    hint = "\nHint: Your system may not have enough RAM for this model. Try a smaller model like 'deepseek-coder:1.3b'."
+                
+                raise RuntimeError(f"Ollama Error: {error_msg}{hint}")
+
             response.raise_for_status()
             return response.json().get("message", {}).get("content", "")
         except requests.exceptions.RequestException as e:

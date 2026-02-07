@@ -34,8 +34,23 @@ def apply_patch_dry_run(original_content: str, diff_text: str) -> str:
     
     # whatthepatch.apply_diff is available!
     try:
+        # Before applying, ensure THERE ARE changes.
+        # Identity diffs (where nothing changes) should be treated as no-ops or errors if we expected changes.
+        has_changes = False
+        for change in diff.changes:
+            if change.old is None or change.new is None:
+                has_changes = True
+                break
+        
+        if not has_changes:
+            raise PatchError("Diff contains no additions or deletions.")
+
         new_lines = whatthepatch.apply_diff(diff, original_content.splitlines())
+        if new_lines is None:
+             raise PatchError("Failed to apply patch (whatthepatch returned None).")
         return "\n".join(new_lines)
+    except PatchError:
+        raise
     except Exception as e:
         # Fallback to Fuzzy Patching
         lines = original_content.splitlines()

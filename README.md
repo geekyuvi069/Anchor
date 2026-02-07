@@ -46,7 +46,7 @@ anchor chat
 ### 2. Conversational Editing (Recommended)
 Discuss and plan a feature before applying any changes. Anchor will analyze your code and ask clarifying questions first.
 ```bash
-anchor modify --feature "add a logout endpoint" --file "server.py"
+anchor modify "add a logout endpoint" --file "server.py"
 ```
 *Flow: Discuss -> Plan -> Confirm -> Apply*
 
